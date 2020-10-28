@@ -2,6 +2,8 @@
   "name": "js-geo-web-coordinate",
   "version": "0.1.0",
   "description": "A small library to handle Geo Web Coordinates",
+  "module": "index.js",
+  "types": "index.js",
   "main": "index.js",
   "scripts": {
     "test": "nodeunit tests/test.js"
@@ -12,6 +14,7 @@
   "author": "Cody Hatfield <cody.hatfield@me.com>",
   "license": "MIT",
   "dependencies": {
+    "assemblyscript": "^0.17.0",
     "bn.js": "^5.1.3"
   },
   "devDependencies": {
