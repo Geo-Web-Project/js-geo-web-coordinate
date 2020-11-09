@@ -29,8 +29,8 @@ function to_gps(gwCoord) {
     throw new Error("GeoWebCoordinate should be a BN");
   }
 
-  let lonGW = gwCoord.shrn(32);
-  let latGW = gwCoord.and(new BN(2 ** 32 - 1));
+  let lonGW = get_x(gwCoord);
+  let latGW = get_y(gwCoord);
 
   if (lonGW.gt(GW_MAX_LON)) {
     throw new Error("Longitude is out of bounds");
@@ -61,6 +61,14 @@ function to_gps(gwCoord) {
   ];
 }
 
+function get_x(gwCoord) {
+  return gwCoord.shrn(32);
+}
+
+function get_y(gwCoord) {
+  return gwCoord.and(new BN(2 ** 32 - 1));
+}
+
 function make_gw_coord(x, y) {
   return new BN(x).shln(32).or(new BN(y));
 }
@@ -75,6 +83,8 @@ var GeoWebCoordinate = {
   from_gps: from_gps,
   to_gps: to_gps,
   make_gw_coord: make_gw_coord,
+  get_x: get_x,
+  get_y: get_y,
 };
 
 module.exports = GeoWebCoordinate;
