@@ -10,7 +10,7 @@ const DIR_EAST = new BN("10", 2);
 const DIR_WEST = new BN("11", 2);
 
 const INNER_PATH_MASK = new BN(1).shln(256 - 8).subn(1);
-const MAX_PATH_LEN = 256 / 8 / 2;
+const MAX_PATH_LEN = (256 - 8) / 2;
 
 function from_gps(lon, lat) {
   if (lat < -90 || lat >= 90) {
@@ -121,7 +121,9 @@ function make_rect_path(sourceCoord, destCoord) {
     }
   }
 
-  paths.push(path);
+  if (path_length(path) > 0) {
+    paths.push(path);
+  }
 
   return paths;
 }
