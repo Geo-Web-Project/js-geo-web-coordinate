@@ -2,6 +2,10 @@ const GeoWebCoordinate = require("../");
 const test = require("assert");
 const BN = require("bn.js");
 
+function makePathPrefix(length) {
+  return new BN(length).shln(256 - 8);
+}
+
 exports.testFromGPSBasic = function (test) {
   let lon = 110.0;
   let lat = 38.0;
@@ -233,6 +237,170 @@ exports.testToGPSLatOutOfBounds = function (test) {
 
   test.throws(() => GeoWebCoordinate.to_gps(gwCoord));
 
+  test.done();
+};
+
+exports.testAppendPathEmpty = function (test) {
+  let path = new BN(0);
+  let direction = new BN("10", 2);
+
+  let newPath = GeoWebCoordinate.append_to_path(path, direction);
+
+  test.equal(
+    newPath.toString(2),
+    "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010"
+  );
+  test.done();
+};
+
+exports.testAppendPathMultiple = function (test) {
+  let newPath = GeoWebCoordinate.append_to_path(new BN(0), new BN("10", 2));
+  newPath = GeoWebCoordinate.append_to_path(newPath, new BN("00", 2));
+  newPath = GeoWebCoordinate.append_to_path(newPath, new BN("01", 2));
+  newPath = GeoWebCoordinate.append_to_path(newPath, new BN("01", 2));
+  newPath = GeoWebCoordinate.append_to_path(newPath, new BN("11", 2));
+
+  test.equal(
+    newPath.toString(2),
+    "10100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001101010010"
+  );
+  test.done();
+};
+
+exports.testAppendPathTooLong = function (test) {
+  test.throws(() =>
+    GeoWebCoordinate.append_to_path(new BN(125).shln(248), new BN("10", 2))
+  );
+  test.done();
+};
+
+exports.testMakeRectPathSingle = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  test.equal(paths.length, 0);
+  test.done();
+};
+
+exports.testMakeRectPathSquare1 = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("2", "2");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(8).or(new BN("1010001111001010", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectPathSquare2 = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("2", "2");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(8).or(new BN("1111011010011111", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectPathSquare3 = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "2");
+  let destCoord = GeoWebCoordinate.make_gw_coord("2", "0");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(8).or(new BN("1010011111011010", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectPathSquare4 = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("2", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "2");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(8).or(new BN("1111001010001111", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectPathRect1 = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("2", "3");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(11).or(new BN("1111001010001111001010", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectPathRect2 = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("3", "2");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(11).or(new BN("1010100011111100101010", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectEastLine = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("2", "0");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(2).or(new BN("1010", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectWestLine = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("2", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(2).or(new BN("1111", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectNorthLine = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "2");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(2).or(new BN("0000", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeRectSouthLine = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "2");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  let expectedPath = makePathPrefix(2).or(new BN("0101", 2));
+  test.equal(paths.length, 1);
+  test.equal(paths[0].toString(2), expectedPath.toString(2));
+  test.done();
+};
+
+exports.testMakeLongPath = function (test) {
+  let sourceCoord = GeoWebCoordinate.make_gw_coord("0", "0");
+  let destCoord = GeoWebCoordinate.make_gw_coord("0", "200");
+
+  let paths = GeoWebCoordinate.make_rect_path(sourceCoord, destCoord);
+  test.equal(paths.length, 2);
+  test.equal(paths[0].toString(2), makePathPrefix(124).toString(2));
+  test.equal(paths[1].toString(2), makePathPrefix(76).toString(2));
   test.done();
 };
 
