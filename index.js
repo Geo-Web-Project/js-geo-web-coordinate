@@ -1,8 +1,8 @@
 const BN = require("bn.js");
 
-const GW_MAX_LAT = new BN(2 ** 23).subn(1);
-const GW_MAX_LON = new BN(2 ** 24).subn(1);
-const GW_INCRE = new BN("21457672119140625");
+const GW_MAX_LAT = new BN(2 ** 18).subn(1);
+const GW_MAX_LON = new BN(2 ** 19).subn(1);
+const GW_INCRE = new BN("686645507812500000");
 
 const DIR_NORTH = new BN("00", 2);
 const DIR_SOUTH = new BN("01", 2);
@@ -176,6 +176,8 @@ function _to_gps_decimal(c) {
 }
 
 var GeoWebCoordinate = {
+  GW_MAX_LAT: GW_MAX_LAT,
+  GW_MAX_LON: GW_MAX_LON,
   from_gps: from_gps,
   to_gps: to_gps,
   make_gw_coord: make_gw_coord,
