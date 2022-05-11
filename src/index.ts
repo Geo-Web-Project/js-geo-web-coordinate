@@ -1,7 +1,8 @@
-import { BigNumber } from "ethers";
+// eslint-disable-next-line import/named
+import { BigNumber, BigNumberish } from "ethers";
 
-const DEFAULT_GW_MAX_LAT = BigNumber.from(2 ** 18).sub(1);
-const DEFAULT_GW_MAX_LON = BigNumber.from(2 ** 19).sub(1);
+export const DEFAULT_GW_MAX_LAT = BigNumber.from(2 ** 18).sub(1);
+export const DEFAULT_GW_MAX_LON = BigNumber.from(2 ** 19).sub(1);
 const GW_INCRE = BigNumber.from("686645507812500000");
 
 const DIR_NORTH = BigNumber.from(0b00);
@@ -100,15 +101,28 @@ export class GeoWebCoordinate {
     return this._value.and(BigNumber.from(2 ** 32 - 1));
   }
 
-  static fromXandY(x: number, y: number) {
-    return BigNumber.from(x).shl(32).or(BigNumber.from(y));
+  toString() {
+    return this._value.toString();
+  }
+
+  static fromXandY(
+    x: BigNumberish,
+    y: BigNumberish,
+    lonDim?: number,
+    latDim?: number
+  ) {
+    return new GeoWebCoordinate(
+      BigNumber.from(x).shl(32).or(BigNumber.from(y)),
+      lonDim,
+      latDim
+    );
   }
 
   // Make a rectangular path between two coordinates
   static makeRectPath(
     sourceCoord: GeoWebCoordinate,
     destCoord: GeoWebCoordinate
-  ) {
+  ): BigNumber[] {
     sourceCoord.validate();
     destCoord.validate();
 
