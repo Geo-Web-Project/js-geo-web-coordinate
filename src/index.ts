@@ -1,190 +1,203 @@
-const BN = require("bn.js");
+import { BigNumber } from "ethers";
 
-const GW_MAX_LAT = new BN(2 ** 18).subn(1);
-const GW_MAX_LON = new BN(2 ** 19).subn(1);
-const GW_INCRE = new BN("686645507812500000");
+const DEFAULT_GW_MAX_LAT = BigNumber.from(2 ** 18).sub(1);
+const DEFAULT_GW_MAX_LON = BigNumber.from(2 ** 19).sub(1);
+const GW_INCRE = BigNumber.from("686645507812500000");
 
-const DIR_NORTH = new BN("00", 2);
-const DIR_SOUTH = new BN("01", 2);
-const DIR_EAST = new BN("10", 2);
-const DIR_WEST = new BN("11", 2);
+const DIR_NORTH = BigNumber.from(0b00);
+const DIR_SOUTH = BigNumber.from(0b01);
+const DIR_EAST = BigNumber.from(0b10);
+const DIR_WEST = BigNumber.from(0b11);
 
-const INNER_PATH_MASK = new BN(1).shln(256 - 8).subn(1);
+const INNER_PATH_MASK = BigNumber.from(1)
+  .shl(256 - 8)
+  .sub(1);
 const MAX_PATH_LEN = (256 - 8) / 2;
 
-function from_gps(lon, lat) {
-  if (lat < -90 || lat >= 90) {
-    throw new Error("Latitude must be between -90 and <90");
-  }
-  if (lon < -180 || lon >= 180) {
-    throw new Error("Longitude must be between -180 and <180");
-  }
+export class GeoWebCoordinate {
+  private _value: BigNumber;
+  private _maxLat: BigNumber;
+  private _maxLon: BigNumber;
 
-  // Lose precision of GPS coordinates after 10 digits
-  let latNorm = new BN((lat + 90) * 10 ** 10).mul(new BN(10).pow(new BN(11)));
-  let lonNorm = new BN((lon + 180) * 10 ** 10).mul(new BN(10).pow(new BN(11)));
-
-  let latGW = new BN(latNorm).div(GW_INCRE);
-  let lonGW = new BN(lonNorm).div(GW_INCRE);
-
-  return lonGW.shln(32).or(latGW);
-}
-
-// Note: to_gps will round results to nearest 10 digits.
-// This may result in small rounding errors that makes converting to and from coordinates not deterministic
-function to_gps(gwCoord) {
-  if (!BN.isBN(gwCoord)) {
-    throw new Error("GeoWebCoordinate should be a BN");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  constructor(value: any, lonDim?: number, latDim?: number) {
+    this._maxLat = latDim
+      ? BigNumber.from(2 ** latDim).sub(1)
+      : DEFAULT_GW_MAX_LAT;
+    this._maxLon = lonDim
+      ? BigNumber.from(2 ** lonDim).sub(1)
+      : DEFAULT_GW_MAX_LON;
+    this._value = BigNumber.from(value);
   }
 
-  let lonGW = get_x(gwCoord);
-  let latGW = get_y(gwCoord);
+  static fromGPS(
+    lon: number,
+    lat: number,
+    lonDim?: number,
+    latDim?: number
+  ): GeoWebCoordinate {
+    if (lat < -90 || lat >= 90) {
+      throw new Error("Latitude must be between -90 and <90");
+    }
+    if (lon < -180 || lon >= 180) {
+      throw new Error("Longitude must be between -180 and <180");
+    }
 
-  if (lonGW.gt(GW_MAX_LON)) {
-    throw new Error("Longitude is out of bounds");
+    // Lose precision of GPS coordinates after 10 digits
+    const latNorm = BigNumber.from((lat + 90) * 10 ** 10).mul(
+      BigNumber.from(10).pow(BigNumber.from(11))
+    );
+    const lonNorm = BigNumber.from((lon + 180) * 10 ** 10).mul(
+      BigNumber.from(10).pow(BigNumber.from(11))
+    );
+
+    const latGW = BigNumber.from(latNorm).div(GW_INCRE);
+    const lonGW = BigNumber.from(lonNorm).div(GW_INCRE);
+
+    return new GeoWebCoordinate(lonGW.shl(32).or(latGW), lonDim, latDim);
   }
-  if (latGW.gt(GW_MAX_LAT)) {
-    throw new Error("Latitude is out of bounds");
+
+  // Note: toGPS will round results to nearest 10 digits.
+  // This may result in small rounding errors that makes converting to and from coordinates not deterministic
+  toGPS() {
+    const lonGW = this.getX();
+    const latGW = this.getY();
+
+    if (lonGW.gt(this._maxLon)) {
+      throw new Error("Longitude is out of bounds");
+    }
+    if (latGW.gt(this._maxLat)) {
+      throw new Error("Latitude is out of bounds");
+    }
+
+    const MULTIPLIER = BigNumber.from(10).pow(BigNumber.from(21));
+
+    const bl_lon = lonGW.mul(GW_INCRE).sub(BigNumber.from(180).mul(MULTIPLIER));
+    const bl_lat = latGW.mul(GW_INCRE).sub(BigNumber.from(90).mul(MULTIPLIER));
+
+    const tr_lon = bl_lon.add(GW_INCRE);
+    const tr_lat = bl_lat.add(GW_INCRE);
+
+    const br_lon = tr_lon;
+    const br_lat = bl_lat;
+
+    const tl_lon = bl_lon;
+    const tl_lat = tr_lat;
+
+    return [
+      [this._toGPSDecimal(bl_lon), this._toGPSDecimal(bl_lat)],
+      [this._toGPSDecimal(br_lon), this._toGPSDecimal(br_lat)],
+      [this._toGPSDecimal(tr_lon), this._toGPSDecimal(tr_lat)],
+      [this._toGPSDecimal(tl_lon), this._toGPSDecimal(tl_lat)],
+    ];
   }
 
-  const MULTIPLIER = new BN(10).pow(new BN(21));
+  getX() {
+    return this._value.shr(32);
+  }
 
-  let bl_lon = lonGW.mul(GW_INCRE).sub(new BN(180).mul(MULTIPLIER));
-  let bl_lat = latGW.mul(GW_INCRE).sub(new BN(90).mul(MULTIPLIER));
+  getY() {
+    return this._value.and(BigNumber.from(2 ** 32 - 1));
+  }
 
-  let tr_lon = bl_lon.add(GW_INCRE);
-  let tr_lat = bl_lat.add(GW_INCRE);
+  static fromXandY(x: number, y: number) {
+    return BigNumber.from(x).shl(32).or(BigNumber.from(y));
+  }
 
-  let br_lon = tr_lon;
-  let br_lat = bl_lat;
+  // Make a rectangular path between two coordinates
+  static makeRectPath(
+    sourceCoord: GeoWebCoordinate,
+    destCoord: GeoWebCoordinate
+  ) {
+    sourceCoord.validate();
+    destCoord.validate();
 
-  let tl_lon = bl_lon;
-  let tl_lat = tr_lat;
+    const x_s = sourceCoord.getX();
+    const y_s = sourceCoord.getY();
 
-  return [
-    [_to_gps_decimal(bl_lon), _to_gps_decimal(bl_lat)],
-    [_to_gps_decimal(br_lon), _to_gps_decimal(br_lat)],
-    [_to_gps_decimal(tr_lon), _to_gps_decimal(tr_lat)],
-    [_to_gps_decimal(tl_lon), _to_gps_decimal(tl_lat)],
-  ];
-}
+    const x_d = destCoord.getX();
+    const y_d = destCoord.getY();
 
-function get_x(gwCoord) {
-  return gwCoord.shrn(32);
-}
+    const paths = [];
+    let path = BigNumber.from(0);
 
-function get_y(gwCoord) {
-  return gwCoord.and(new BN(2 ** 32 - 1));
-}
+    function _append(direction: BigNumber) {
+      if (GeoWebCoordinate.pathLength(path).gte(MAX_PATH_LEN)) {
+        // Add to new path
+        paths.push(path);
+        path = BigNumber.from(0);
+      }
 
-function make_gw_coord(x, y) {
-  return new BN(x).shln(32).or(new BN(y));
-}
+      path = GeoWebCoordinate.appendToPath(path, direction);
+    }
 
-// Make a rectangular path between two coordinates
-function make_rect_path(sourceCoord, destCoord) {
-  _validate_coord(sourceCoord);
-  _validate_coord(destCoord);
+    for (
+      let y_offset = 0;
+      y_offset <= y_d.sub(y_s).abs().toNumber();
+      y_offset++
+    ) {
+      for (
+        let x_offset = 0;
+        x_offset < x_d.sub(x_s).abs().toNumber();
+        x_offset++
+      ) {
+        // Each column
+        const dir_even = x_d > x_s ? DIR_EAST : DIR_WEST;
+        const dir_odd = x_d > x_s ? DIR_WEST : DIR_EAST;
+        const direction_x = y_offset % 2 == 0 ? dir_even : dir_odd;
+        _append(direction_x);
+      }
 
-  let x_s = get_x(sourceCoord);
-  let y_s = get_y(sourceCoord);
+      // Each row
+      if (y_offset < y_d.sub(y_s).abs().toNumber()) {
+        const direction_y = y_d > y_s ? DIR_NORTH : DIR_SOUTH;
+        _append(direction_y);
+      }
+    }
 
-  let x_d = get_x(destCoord);
-  let y_d = get_y(destCoord);
-
-  let paths = [];
-  let path = new BN(0);
-
-  function _append(direction) {
-    if (path_length(path) >= MAX_PATH_LEN) {
-      // Add to new path
+    if (GeoWebCoordinate.pathLength(path).gt(0)) {
       paths.push(path);
-      path = new BN(0);
     }
 
-    path = append_to_path(path, direction);
+    return paths;
   }
 
-  for (let y_offset = 0; y_offset <= Math.abs(y_d - y_s); y_offset++) {
-    for (let x_offset = 0; x_offset < Math.abs(x_d - x_s); x_offset++) {
-      // Each column
-      let dir_even = x_d > x_s ? DIR_EAST : DIR_WEST;
-      let dir_odd = x_d > x_s ? DIR_WEST : DIR_EAST;
-      let direction_x = y_offset % 2 == 0 ? dir_even : dir_odd;
-      _append(direction_x);
+  static appendToPath(path: BigNumber, direction: BigNumber) {
+    if (direction.gt(3)) {
+      throw new Error("Direction is out of range");
     }
 
-    // Each row
-    if (y_offset < Math.abs(y_d - y_s)) {
-      let direction_y = y_d > y_s ? DIR_NORTH : DIR_SOUTH;
-      _append(direction_y);
+    const length = GeoWebCoordinate.pathLength(path);
+    if (length.gte(MAX_PATH_LEN)) {
+      throw new Error("Path is at maximum length");
+    }
+
+    const newLength = length.add(1).shl(256 - 8);
+
+    const newPath = newLength.or(
+      path.and(INNER_PATH_MASK).or(direction.shl(length.mul(2).toNumber()))
+    );
+    return newPath;
+  }
+
+  static pathLength(path: BigNumber) {
+    return path.shr(256 - 8);
+  }
+
+  validate() {
+    if (this.getX().gt(this._maxLon)) {
+      throw new Error("Longitude is out of bounds");
+    }
+    if (this.getY().gt(this._maxLat)) {
+      throw new Error("Latitude is out of bounds");
     }
   }
 
-  if (path_length(path) > 0) {
-    paths.push(path);
-  }
-
-  return paths;
-}
-
-function append_to_path(path, direction) {
-  if (!BN.isBN(direction)) {
-    throw new Error("Direction should be a BN");
-  }
-  if (direction > 3) {
-    throw new Error("Direction is out of range");
-  }
-  if (!BN.isBN(path)) {
-    throw new Error("Path should be a BN");
-  }
-
-  let length = path_length(path);
-  if (length >= MAX_PATH_LEN) {
-    throw new Error("Path is at maximum length");
-  }
-
-  let newLength = length.addn(1).shln(256 - 8);
-
-  let newPath = newLength.or(
-    path.and(INNER_PATH_MASK).or(direction.shln(length * 2))
-  );
-  return newPath;
-}
-
-function path_length(path) {
-  return path.shrn(256 - 8);
-}
-
-function _validate_coord(coord) {
-  if (!BN.isBN(coord)) {
-    throw new Error("GeoWebCoordinate should be a BN");
-  }
-
-  if (get_x(coord).gt(GW_MAX_LON)) {
-    throw new Error("Longitude is out of bounds");
-  }
-  if (get_y(coord).gt(GW_MAX_LAT)) {
-    throw new Error("Latitude is out of bounds");
+  _toGPSDecimal(v: BigNumber) {
+    // Round to 10 digits from 21
+    // Convert to decimal
+    return (
+      v.div(BigNumber.from(10).pow(BigNumber.from(11))).toNumber() / 10 ** 10
+    );
   }
 }
-
-function _to_gps_decimal(c) {
-  // Round to 10 digits from 21
-  // Convert to decimal
-  return c.div(new BN(10).pow(new BN(11))).toNumber() / 10 ** 10;
-}
-
-var GeoWebCoordinate = {
-  GW_MAX_LAT: GW_MAX_LAT,
-  GW_MAX_LON: GW_MAX_LON,
-  from_gps: from_gps,
-  to_gps: to_gps,
-  make_gw_coord: make_gw_coord,
-  get_x: get_x,
-  get_y: get_y,
-  append_to_path: append_to_path,
-  make_rect_path: make_rect_path,
-};
-
-module.exports = GeoWebCoordinate;

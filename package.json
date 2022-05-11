@@ -12,8 +12,8 @@
     "dist"
   ],
   "scripts": {
-    "test": "nodeunit tests/test.js",
-    "lint": "eslint ./src",
+    "test": "nodeunit test/test.ts",
+    "lint": "eslint",
     "build:clean": "rimraf dist",
     "build:js": "tsc -p tsconfig.build.json",
     "build": "yarn build:clean && yarn build:js"
