@@ -3,7 +3,7 @@ import {
   GeoWebCoordinate,
   DEFAULT_GW_MAX_LAT,
   DEFAULT_GW_MAX_LON,
-} from "../src";
+} from "../dist";
 // eslint-disable-next-line import/named
 import { BigNumber, BigNumberish } from "ethers";
 import { BN } from "bn.js";
