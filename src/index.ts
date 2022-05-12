@@ -3,7 +3,6 @@ import { BigNumber, BigNumberish } from "ethers";
 
 export const DEFAULT_GW_MAX_LAT = BigNumber.from(2 ** 18).sub(1);
 export const DEFAULT_GW_MAX_LON = BigNumber.from(2 ** 19).sub(1);
-const GW_INCRE = BigNumber.from("686645507812500000");
 
 const DIR_NORTH = BigNumber.from(0b00);
 const DIR_SOUTH = BigNumber.from(0b01);
@@ -15,10 +14,15 @@ const INNER_PATH_MASK = BigNumber.from(1)
   .sub(1);
 const MAX_PATH_LEN = (256 - 8) / 2;
 
+function calculateIncre(maxLat: BigNumber) {
+  return BigNumber.from(180).mul(BigNumber.from(10).pow(21)).div(maxLat.add(1));
+}
+
 export class GeoWebCoordinate {
   private _value: BigNumber;
   private _maxLat: BigNumber;
   private _maxLon: BigNumber;
+  private _incre: BigNumber;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   constructor(value: any, lonDim?: number, latDim?: number) {
@@ -29,6 +33,7 @@ export class GeoWebCoordinate {
       ? BigNumber.from(2 ** lonDim).sub(1)
       : DEFAULT_GW_MAX_LON;
     this._value = BigNumber.from(value);
+    this._incre = calculateIncre(this._maxLat);
   }
 
   static fromGPS(
@@ -52,8 +57,12 @@ export class GeoWebCoordinate {
       BigNumber.from(10).pow(BigNumber.from(11))
     );
 
-    const latGW = BigNumber.from(latNorm).div(GW_INCRE);
-    const lonGW = BigNumber.from(lonNorm).div(GW_INCRE);
+    const _maxLat = latDim
+      ? BigNumber.from(2 ** latDim).sub(1)
+      : DEFAULT_GW_MAX_LAT;
+    const _incre = calculateIncre(_maxLat);
+    const latGW = BigNumber.from(latNorm).div(_incre);
+    const lonGW = BigNumber.from(lonNorm).div(_incre);
 
     return new GeoWebCoordinate(lonGW.shl(32).or(latGW), lonDim, latDim);
   }
@@ -73,11 +82,15 @@ export class GeoWebCoordinate {
 
     const MULTIPLIER = BigNumber.from(10).pow(BigNumber.from(21));
 
-    const bl_lon = lonGW.mul(GW_INCRE).sub(BigNumber.from(180).mul(MULTIPLIER));
-    const bl_lat = latGW.mul(GW_INCRE).sub(BigNumber.from(90).mul(MULTIPLIER));
+    const bl_lon = lonGW
+      .mul(this._incre)
+      .sub(BigNumber.from(180).mul(MULTIPLIER));
+    const bl_lat = latGW
+      .mul(this._incre)
+      .sub(BigNumber.from(90).mul(MULTIPLIER));
 
-    const tr_lon = bl_lon.add(GW_INCRE);
-    const tr_lat = bl_lat.add(GW_INCRE);
+    const tr_lon = bl_lon.add(this._incre);
+    const tr_lat = bl_lat.add(this._incre);
 
     const br_lon = tr_lon;
     const br_lat = bl_lat;

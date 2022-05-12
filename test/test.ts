@@ -135,6 +135,13 @@ test("From GPS Basic should not fail on rounding 10 digits", () => {
   }).not.toThrow();
 });
 
+test("From GPS grid size", () => {
+  const gwCoord1 = GeoWebCoordinate.fromGPS(110.0, 38.0, 19, 18);
+  const gwCoord2 = GeoWebCoordinate.fromGPS(110.0, 38.0, 20, 19);
+
+  expect(gwCoord1.toString()).not.toEqual(gwCoord2.toString());
+});
+
 test("To GPS Basic", () => {
   const gwCoord = GeoWebCoordinate.fromXandY("422343", "186413");
 
