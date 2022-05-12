@@ -14,7 +14,7 @@
     "test": "jest",
     "lint": "eslint",
     "build:clean": "rimraf dist",
-    "build:js": "tsc -p tsconfig.build.json",
+    "build:js": "tsc",
     "build": "yarn build:clean && yarn build:js"
   },
   "keywords": [
