@@ -126,6 +126,15 @@ test("From GPS Lat Out Of Bounds 3", () => {
   expect(() => GeoWebCoordinate.fromGPS(lon, lat)).toThrow();
 });
 
+test("From GPS Basic should not fail on rounding 10 digits", () => {
+  const lon = -121.0415789167879;
+  const lat = 46.69028018452175;
+
+  expect(() => {
+    GeoWebCoordinate.fromGPS(lon, lat);
+  }).not.toThrow();
+});
+
 test("To GPS Basic", () => {
   const gwCoord = GeoWebCoordinate.fromXandY("422343", "186413");
 

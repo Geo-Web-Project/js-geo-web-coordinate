@@ -45,10 +45,10 @@ export class GeoWebCoordinate {
     }
 
     // Lose precision of GPS coordinates after 10 digits
-    const latNorm = BigNumber.from((lat + 90) * 10 ** 10).mul(
+    const latNorm = BigNumber.from(Math.floor((lat + 90) * 10 ** 10)).mul(
       BigNumber.from(10).pow(BigNumber.from(11))
     );
-    const lonNorm = BigNumber.from((lon + 180) * 10 ** 10).mul(
+    const lonNorm = BigNumber.from(Math.floor((lon + 180) * 10 ** 10)).mul(
       BigNumber.from(10).pow(BigNumber.from(11))
     );
 
