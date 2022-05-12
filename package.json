@@ -1,6 +1,6 @@
 {
   "name": "js-geo-web-coordinate",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A small library to handle Geo Web Coordinates",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,6 +10,7 @@
   "files": [
     "dist"
   ],
+  "type": "module",
   "scripts": {
     "test": "jest",
     "lint": "eslint",
