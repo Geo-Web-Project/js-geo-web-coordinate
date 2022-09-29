@@ -81,16 +81,20 @@ export class GeoWebCoordinate {
     }
 
     const MULTIPLIER = BigNumber.from(10).pow(BigNumber.from(21));
+    const DIVISOR = BigNumber.from(10).pow(BigNumber.from(11));
 
-    const bl_lon = lonGW
+    const bl_lon_big_number = lonGW
       .mul(this._incre)
       .sub(BigNumber.from(180).mul(MULTIPLIER));
-    const bl_lat = latGW
+    const bl_lat_big_number = latGW
       .mul(this._incre)
       .sub(BigNumber.from(90).mul(MULTIPLIER));
 
-    const tr_lon = bl_lon.add(this._incre);
-    const tr_lat = bl_lat.add(this._incre);
+    const tr_lon = bl_lon_big_number.add(this._incre).div(DIVISOR).toNumber();
+    const tr_lat = bl_lat_big_number.add(this._incre).div(DIVISOR).toNumber();
+
+    const bl_lon = bl_lon_big_number.div(DIVISOR).toNumber();
+    const bl_lat = bl_lat_big_number.div(DIVISOR).toNumber();
 
     const br_lon = tr_lon;
     const br_lat = bl_lat;
@@ -220,11 +224,8 @@ export class GeoWebCoordinate {
     }
   }
 
-  _toGPSDecimal(v: BigNumber) {
-    // Round to 10 digits from 21
-    // Convert to decimal
-    return (
-      v.div(BigNumber.from(10).pow(BigNumber.from(11))).toNumber() / 10 ** 10
-    );
+  _toGPSDecimal(v: number) {
+    // Move 10 decimal places to the left
+    return v / 10 ** 10;
   }
 }
